@@ -63,6 +63,7 @@ static int usb_pwrseq_power_on(struct pwrseq *_pwrseq)
 	u32 duration_us = 50, clk_rate = 0;
 	int ret;
 
+	dev_info(dev, "%s\n", __func__);
 	if (pwrseq->clk) {
 		ret = clk_prepare_enable(pwrseq->clk);
 		if (ret) {
@@ -72,6 +73,7 @@ static int usb_pwrseq_power_on(struct pwrseq *_pwrseq)
 			return ret;
 		}
 
+		dev_info(dev, "clock is enabled\n");
 		of_property_read_u32(node, "clock-frequency", &clk_rate);
 		if (clk_rate) {
 			ret = clk_set_rate(pwrseq->clk, clk_rate);
@@ -85,6 +87,7 @@ static int usb_pwrseq_power_on(struct pwrseq *_pwrseq)
 	if (gpiod_reset) {
 		of_property_read_u32(node, "reset-duration-us", &duration_us);
 		gpiod_direction_output(gpiod_reset, 1);
+		dev_info(dev, "duration is %d\n", duration_us);
 
 		gpiod_set_value(gpiod_reset, 1);
 		usleep_range(duration_us, duration_us + 10);
@@ -171,6 +174,7 @@ static int usb_pwrseq_generic_probe(struct platform_device *pdev)
 	pwrseq->pwrseq.owner = THIS_MODULE;
 	platform_set_drvdata(pdev, pwrseq);
 
+	dev_info(dev, "%s\n", __func__);
 	return pwrseq_register(&pwrseq->pwrseq);
 }
 

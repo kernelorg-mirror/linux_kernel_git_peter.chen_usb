@@ -146,6 +146,20 @@
 		mux-int-port = <2>;
 		mux-ext-port = <6>;
 	};
+
+	hub_genesys_1_pwrseq: hub_genesys_1_pwrseq {
+		compatible = "usb-pwrseq-generic";
+		reset-gpios = <&gpio4 5 GPIO_ACTIVE_LOW>; /* hub reset pin */
+		reset-duration-us = <10>;
+		clocks = <&clks IMX6SX_CLK_CKO>;
+	};
+
+	ethernet_asix_1_pwrseq: ethernet_asix_1_pwrseq {
+		compatible = "usb-pwrseq-generic";
+		reset-gpios = <&gpio4 6 GPIO_ACTIVE_LOW>; /* ethernet_rst */
+		reset-duration-us = <15>;
+		clocks = <&clks IMX6SX_CLK_IPG>;
+	};
 };
 
 &audmux {
@@ -282,12 +296,37 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb_otg1_id>;
 	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	hub: genesys@1 {
+		compatible = "usb5e3,608";
+		reg = <1>;
+
+		power-sequence;
+		reset-gpios = <&gpio4 5 GPIO_ACTIVE_LOW>; /* hub reset pin */
+		reset-duration-us = <10>;
+		clocks = <&clks IMX6SX_CLK_CKO>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+		ethernet: asix@1 {
+			compatible = "usbb95,1708";
+			reg = <1>;
+
+			power-sequence;
+			reset-gpios = <&gpio4 6 GPIO_ACTIVE_LOW>; /* ethernet_rst */
+			reset-duration-us = <15>;
+			clocks = <&clks IMX6SX_CLK_IPG>;
+		};
+	};
 };
 
 &usbotg2 {
 	vbus-supply = <&reg_usb_otg2_vbus>;
 	dr_mode = "host";
 	status = "okay";
+
 };
 
 &usdhc2 {

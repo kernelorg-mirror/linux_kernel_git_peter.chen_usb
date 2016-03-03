@@ -1714,6 +1714,7 @@ static int hub_of_pwrseq_on(struct usb_hub *hub)
 	else
 		parent = bus_to_hcd(hdev->bus)->self.controller;
 
+	dev_info(&hdev->dev, "%s\n", __func__);
 	for_each_child_of_node(parent->of_node, node) {
 		hdev_pwrseq = pwrseq_alloc(node, "usb_pwrseq_generic");
 		if (!IS_ERR_OR_NULL(hdev_pwrseq)) {
