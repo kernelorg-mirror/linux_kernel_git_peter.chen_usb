@@ -275,6 +275,8 @@
 	vbus-supply = <&reg_usb_otg1_vbus>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb_otg1_id>;
+	otg-rev = <0x0200>;
+	adp-disable;
 	status = "okay";
 };
 

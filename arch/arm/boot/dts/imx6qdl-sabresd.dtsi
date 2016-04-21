@@ -563,6 +563,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg>;
 	disable-over-current;
+	otg-rev = <0x0200>;
+	adp-disable;
 	status = "okay";
 };
 
