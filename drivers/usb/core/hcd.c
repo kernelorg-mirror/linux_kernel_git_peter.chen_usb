@@ -46,6 +46,11 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/phy.h>
+#include <linux/usb/otg.h>
+#include <linux/usb/of.h>
+
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
 #include "usb.h"
 
@@ -3024,6 +3029,56 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	hcd->flags = 0;
 }
 EXPORT_SYMBOL_GPL(usb_remove_hcd);
+
+static struct otg_hcd_ops otg_hcd_intf = {
+	.add = usb_add_hcd,
+	.remove = usb_remove_hcd,
+	.usb_bus_start_enum = usb_bus_start_enum,
+	.usb_control_msg = usb_control_msg,
+	.usb_hub_find_child = usb_hub_find_child,
+};
+
+/**
+ * usb_otg_add_hcd - Register the HCD with OTG core.
+ * @hcd: the usb_hcd structure to initialize
+ * @irqnum: Interrupt line to allocate
+ * @irqflags: Interrupt type flags
+ * @otg_dev: OTG controller device managing this HCD
+ *
+ * Registers the HCD with OTG core. OTG core will call usb_add_hcd()
+ * or usb_remove_hcd() as necessary.
+ * If otg_dev is NULL then device tree node is checked for OTG
+ * controller device via the otg-controller property.
+ */
+int usb_otg_add_hcd(struct usb_hcd *hcd,
+		    unsigned int irqnum, unsigned long irqflags,
+		    struct device *otg_dev)
+{
+	struct device *dev = hcd->self.controller;
+
+	if (!otg_dev) {
+		hcd->otg_dev = of_usb_get_otg(dev->of_node);
+		if (!hcd->otg_dev)
+			return -ENODEV;
+	} else {
+		hcd->otg_dev = otg_dev;
+	}
+
+	return usb_otg_register_hcd(hcd, irqnum, irqflags, &otg_hcd_intf);
+}
+EXPORT_SYMBOL_GPL(usb_otg_add_hcd);
+
+/**
+ * usb_otg_remove_hcd - Unregister the HCD with OTG core.
+ * @hcd: the usb_hcd structure to remove
+ *
+ * Unregisters the HCD from the OTG core.
+ */
+void usb_otg_remove_hcd(struct usb_hcd *hcd)
+{
+	usb_otg_unregister_hcd(hcd);
+}
+EXPORT_SYMBOL_GPL(usb_otg_remove_hcd);
 
 void
 usb_hcd_platform_shutdown(struct platform_device *dev)
