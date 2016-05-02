@@ -42,7 +42,7 @@ config USB_DYNAMIC_MINORS
 	  If you are unsure about this, say N here.
 
 config USB_OTG
-	bool "OTG support"
+	bool "OTG/Dual-role support"
 	depends on PM
 	default n
 	help
