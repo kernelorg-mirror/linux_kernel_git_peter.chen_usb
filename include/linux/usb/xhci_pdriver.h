@@ -18,10 +18,13 @@
  *
  * @usb3_lpm_capable:	determines if this xhci platform supports USB3
  *			LPM capability
+ * @otg_dev:		OTG controller device. Only requied if part of
+ *			OTG/dual-role.
  *
  */
 struct usb_xhci_pdata {
 	unsigned	usb3_lpm_capable:1;
+	struct device	*otg_dev;
 };
 
 #endif /* __USB_CORE_XHCI_PDRIVER_H */

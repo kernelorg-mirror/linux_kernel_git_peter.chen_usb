@@ -239,11 +239,20 @@ static int xhci_plat_probe(struct platform_device *pdev)
 			goto put_usb3_hcd;
 	}
 
-	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
+	if (pdata && pdata->otg_dev)
+		ret = usb_otg_add_hcd(hcd, irq, IRQF_SHARED, pdata->otg_dev);
+	else
+		ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
+
 	if (ret)
 		goto disable_usb_phy;
 
-	ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
+	if (pdata && pdata->otg_dev)
+		ret = usb_otg_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED,
+				      pdata->otg_dev);
+	else
+		ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
+
 	if (ret)
 		goto dealloc_usb2_hcd;
 
@@ -251,7 +260,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 
 dealloc_usb2_hcd:
-	usb_remove_hcd(hcd);
+	if (pdata && pdata->otg_dev)
+		usb_otg_remove_hcd(hcd);
+	else
+		usb_remove_hcd(hcd);
 
 disable_usb_phy:
 	usb_phy_shutdown(hcd->usb_phy);
@@ -269,16 +281,25 @@ put_hcd:
 	return ret;
 }
 
-static int xhci_plat_remove(struct platform_device *dev)
+static int xhci_plat_remove(struct platform_device *pdev)
 {
-	struct usb_hcd	*hcd = platform_get_drvdata(dev);
+	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct clk *clk = xhci->clk;
+	struct usb_xhci_pdata *pdata = dev_get_platdata(&pdev->dev);
 
-	usb_remove_hcd(xhci->shared_hcd);
+	if (pdata && pdata->otg_dev)
+		usb_otg_remove_hcd(xhci->shared_hcd);
+	else
+		usb_remove_hcd(xhci->shared_hcd);
+
 	usb_phy_shutdown(hcd->usb_phy);
 
-	usb_remove_hcd(hcd);
+	if (pdata && pdata->otg_dev)
+		usb_otg_remove_hcd(hcd);
+	else
+		usb_remove_hcd(hcd);
+
 	usb_put_hcd(xhci->shared_hcd);
 
 	if (!IS_ERR(clk))
