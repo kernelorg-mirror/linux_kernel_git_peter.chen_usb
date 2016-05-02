@@ -57,7 +57,8 @@ struct otg_hcd {
  * @list: list of otg controllers
  * @work: otg state machine work
  * @wq: otg state machine work queue
- * @flags: to track if host/gadget is running
+ * @flags: to track if host/gadget is running, or to indicate if hcd needs
+ *	   companion
  */
 struct usb_otg {
 	u8			default_a;
@@ -84,6 +85,7 @@ struct usb_otg {
 	u32 flags;
 #define OTG_FLAG_GADGET_RUNNING (1 << 0)
 #define OTG_FLAG_HOST_RUNNING (1 << 1)
+#define OTG_FLAG_HCD_NEEDS_COMPANION (1 << 2)
 	/* use otg->fsm.lock for serializing access */
 
 /*------------- deprecated interface -----------------------------*/
@@ -125,11 +127,14 @@ struct usb_otg_caps {
  * @caps: otg capabilities of the controller
  * @ops: otg fsm operations
  * @otg_work: optional custom otg state machine work function
+ * @hcd_needs_companion: Indicates if host controller needs a companion
+ *			 controller
  */
 struct usb_otg_config {
 	struct usb_otg_caps *otg_caps;
 	struct otg_fsm_ops *fsm_ops;
 	void (*otg_work)(struct work_struct *work);
+	bool hcd_needs_companion;
 };
 
 extern const char *usb_otg_state_string(enum usb_otg_state state);

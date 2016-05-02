@@ -27,6 +27,9 @@ Optional properties:
  - otg-controller: phandle to otg controller. Host or gadget controllers can
 			contain this property to link it to a particular OTG
 			controller.
+ - hcd-needs-companion: must be present if otg controller is dealing with
+			EHCI host controller that needs a companion OHCI host
+			controller.
 
 This is an attribute to a USB controller such as:
 

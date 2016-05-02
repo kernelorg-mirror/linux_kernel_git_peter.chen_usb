@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/usb/of.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/gadget.h>
 #include <linux/workqueue.h>
@@ -582,6 +583,10 @@ struct usb_otg *usb_otg_register(struct device *dev,
 	else
 		INIT_WORK(&otg->work, usb_drd_work);
 
+	if (of_find_property(dev->of_node, "hcd-needs-companion", NULL) ||
+	    config->hcd_needs_companion)	/* needs companion ? */
+		otg->flags |= OTG_FLAG_HCD_NEEDS_COMPANION;
+
 	otg->wq = create_singlethread_workqueue("usb_otg");
 	if (!otg->wq) {
 		dev_err(dev, "otg: %s: can't create workqueue\n",
@@ -805,15 +810,18 @@ int usb_otg_register_hcd(struct usb_hcd *hcd, unsigned int irqnum,
 	/* HCD will be started by OTG fsm when needed */
 	mutex_lock(&otg->fsm.lock);
 	if (otg->primary_hcd.hcd) {
-		/* probably a shared HCD ? */
-		if (usb_otg_hcd_is_primary_hcd(hcd)) {
+		/* probably a shared HCD or a companion OHCI HCD ? */
+		if (!(otg->flags & OTG_FLAG_HCD_NEEDS_COMPANION) &&
+		    usb_otg_hcd_is_primary_hcd(hcd)) {
 			dev_err(otg_dev, "otg: primary host already registered\n");
 			goto err;
 		}
 
-		if (hcd->shared_hcd == otg->primary_hcd.hcd) {
+		if (otg->flags & OTG_FLAG_HCD_NEEDS_COMPANION ||
+		    (hcd->shared_hcd == otg->primary_hcd.hcd)) {
 			if (otg->shared_hcd.hcd) {
-				dev_err(otg_dev, "otg: shared host already registered\n");
+				dev_err(otg_dev,
+					"otg: shared/companion host already registered\n");
 				goto err;
 			}
 
@@ -821,10 +829,12 @@ int usb_otg_register_hcd(struct usb_hcd *hcd, unsigned int irqnum,
 			otg->shared_hcd.irqnum = irqnum;
 			otg->shared_hcd.irqflags = irqflags;
 			otg->shared_hcd.ops = ops;
-			dev_info(otg_dev, "otg: shared host %s registered\n",
+			dev_info(otg_dev,
+				 "otg: shared/companion host %s registered\n",
 				 dev_name(hcd->self.controller));
 		} else {
-			dev_err(otg_dev, "otg: invalid shared host %s\n",
+			dev_err(otg_dev,
+				"otg: invalid shared/companion host %s\n",
 				dev_name(hcd->self.controller));
 			goto err;
 		}
@@ -847,14 +857,17 @@ int usb_otg_register_hcd(struct usb_hcd *hcd, unsigned int irqnum,
 	 * we're ready only if we have shared HCD
 	 * or we don't need shared HCD.
 	 */
-	if (otg->shared_hcd.hcd || !otg->primary_hcd.hcd->shared_hcd) {
+	if (otg->shared_hcd.hcd ||
+	    (!(otg->flags & OTG_FLAG_HCD_NEEDS_COMPANION) &&
+	     !otg->primary_hcd.hcd->shared_hcd)) {
 		otg->host = hcd_to_bus(hcd);
 		/* FIXME: set bus->otg_port if this is true OTG port with HNP */
 
 		/* start FSM */
 		usb_otg_start_fsm(otg);
 	} else {
-		dev_dbg(otg_dev, "otg: can't start till shared host registers\n");
+		dev_dbg(otg_dev,
+			"otg: can't start till shared/companion host registers\n");
 	}
 
 	mutex_unlock(&otg->fsm.lock);
@@ -905,7 +918,8 @@ int usb_otg_unregister_hcd(struct usb_hcd *hcd)
 			 dev_name(hcd_dev));
 	} else if (hcd == otg->shared_hcd.hcd) {
 		otg->shared_hcd.hcd = NULL;
-		dev_info(otg_dev, "otg: shared host %s unregistered\n",
+		dev_info(otg_dev,
+			 "otg: shared/companion host %s unregistered\n",
 			 dev_name(hcd_dev));
 	} else {
 		dev_err(otg_dev, "otg: host %s wasn't registered with otg\n",
