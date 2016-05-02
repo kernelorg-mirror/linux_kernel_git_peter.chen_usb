@@ -141,11 +141,16 @@ static void otg_hnp_polling_work(struct work_struct *work)
 	enum usb_otg_state state = otg->state;
 	u8 flag;
 	int retval;
+	struct otg_hcd_ops *hcd_ops = otg->hcd_ops;
 
 	if (state != OTG_STATE_A_HOST && state != OTG_STATE_B_HOST)
 		return;
 
-	udev = usb_hub_find_child(otg->host->root_hub, 1);
+	if (!hcd_ops || !hcd_ops->usb_control_msg ||
+	    !hcd_ops->usb_hub_find_child)
+		return;
+
+	udev = hcd_ops->usb_hub_find_child(otg->host->root_hub, 1);
 	if (!udev) {
 		dev_err(otg->host->controller,
 			"no usb dev connected, can't start HNP polling\n");
@@ -154,7 +159,7 @@ static void otg_hnp_polling_work(struct work_struct *work)
 
 	*fsm->host_req_flag = 0;
 	/* Get host request flag from connected USB device */
-	retval = usb_control_msg(udev,
+	retval = hcd_ops->usb_control_msg(udev,
 				usb_rcvctrlpipe(udev, 0),
 				USB_REQ_GET_STATUS,
 				USB_DIR_IN | USB_RECIP_DEVICE,
@@ -183,7 +188,7 @@ static void otg_hnp_polling_work(struct work_struct *work)
 	if (state == OTG_STATE_A_HOST) {
 		/* Set b_hnp_enable */
 		if (!otg->host->b_hnp_enable) {
-			retval = usb_control_msg(udev,
+			retval = hcd_ops->usb_control_msg(udev,
 					usb_sndctrlpipe(udev, 0),
 					USB_REQ_SET_FEATURE, 0,
 					USB_DEVICE_B_HNP_ENABLE,
@@ -262,7 +267,9 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_loc_conn(otg, 0);
 		otg_loc_sof(otg, 1);
 		otg_set_protocol(fsm, PROTO_HOST);
-		usb_bus_start_enum(otg->host, otg->host->otg_port);
+		if (otg->hcd_ops && otg->hcd_ops->usb_bus_start_enum)
+			otg->hcd_ops->usb_bus_start_enum(otg->host,
+							 otg->host->otg_port);
 		otg_start_hnp_polling(fsm);
 		break;
 	case OTG_STATE_A_IDLE:

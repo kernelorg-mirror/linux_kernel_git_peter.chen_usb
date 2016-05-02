@@ -12,6 +12,7 @@
 #include <linux/phy/phy.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/otg-fsm.h>
+#include <linux/usb/hcd.h>
 
 struct usb_otg {
 	u8			default_a;
@@ -24,6 +25,7 @@ struct usb_otg {
 
 	enum usb_otg_state	state;
 	struct otg_fsm fsm;
+	struct otg_hcd_ops	*hcd_ops;
 
 	/* bind/unbind the host controller */
 	int	(*set_host)(struct usb_otg *otg, struct usb_bus *host);

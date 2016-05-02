@@ -792,6 +792,12 @@ static struct otg_fsm_ops fsl_otg_ops = {
 	.start_gadget = fsl_otg_start_gadget,
 };
 
+static struct otg_hcd_ops fsl_hcd_ops = {
+	.usb_bus_start_enum = usb_bus_start_enum,
+	.usb_control_msg = usb_control_msg,
+	.usb_hub_find_child = usb_hub_find_child,
+};
+
 /* Initialize the global variable fsl_otg_dev and request IRQ for OTG */
 static int fsl_otg_conf(struct platform_device *pdev)
 {
@@ -820,6 +826,7 @@ static int fsl_otg_conf(struct platform_device *pdev)
 
 	/* Set OTG state machine operations */
 	fsl_otg_tc->otg.fsm.ops = &fsl_otg_ops;
+	fsl_otg_tc->otg.hcd_ops = &fsl_hcd_ops;
 
 	/* initialize the otg structure */
 	fsl_otg_tc->phy.label = DRIVER_DESC;

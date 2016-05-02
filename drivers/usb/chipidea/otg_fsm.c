@@ -582,6 +582,12 @@ static struct otg_fsm_ops ci_otg_ops = {
 	.start_gadget = ci_otg_start_gadget,
 };
 
+static struct otg_hcd_ops ci_hcd_ops = {
+	.usb_bus_start_enum = usb_bus_start_enum,
+	.usb_control_msg = usb_control_msg,
+	.usb_hub_find_child = usb_hub_find_child,
+};
+
 int ci_otg_fsm_work(struct ci_hdrc *ci)
 {
 	/*
@@ -804,6 +810,7 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 	ci->otg.fsm.id = hw_read_otgsc(ci, OTGSC_ID) ? 1 : 0;
 	ci->otg.state = OTG_STATE_UNDEFINED;
 	ci->otg.fsm.ops = &ci_otg_ops;
+	ci->otg.hcd_ops = &ci_hcd_ops;
 	ci->gadget.hnp_polling_support = 1;
 	ci->otg.fsm.host_req_flag = devm_kzalloc(ci->dev, 1, GFP_KERNEL);
 	if (!ci->otg.fsm.host_req_flag)
