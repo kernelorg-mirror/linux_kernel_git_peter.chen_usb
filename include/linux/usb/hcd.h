@@ -400,6 +400,30 @@ struct hc_driver {
 
 };
 
+/**
+ * struct otg_hcd_ops - Interface between OTG core and HCD
+ *
+ * Provided by the HCD core to allow the OTG core to interface with the HCD
+ *
+ * @add: function to add the HCD
+ * @remove: function to remove the HCD
+ * @usb_bus_start_enum: function to immediately start bus enumeration
+ * @usb_control_msg: function to build and send of a control urb
+ * @usb_hub_find_child: function to get pointer to the child device
+ */
+struct otg_hcd_ops {
+	int (*add)(struct usb_hcd *hcd,
+		   unsigned int irqnum, unsigned long irqflags);
+	void (*remove)(struct usb_hcd *hcd);
+	int (*usb_bus_start_enum)(struct usb_bus *bus, unsigned int port_num);
+	int (*usb_control_msg)(struct usb_device *dev, unsigned int pipe,
+			       __u8 request, __u8 requesttype, __u16 value,
+			       __u16 index, void *data, __u16 size,
+			       int timeout);
+	struct usb_device * (*usb_hub_find_child)(struct usb_device *hdev,
+						  int port1);
+};
+
 static inline int hcd_giveback_urb_in_bh(struct usb_hcd *hcd)
 {
 	return hcd->driver->flags & HCD_BH;
