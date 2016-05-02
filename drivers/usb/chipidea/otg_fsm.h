@@ -64,7 +64,7 @@
 
 #define TB_AIDL_BDIS         (20)	/* 4ms ~ 150ms, section 5.2.1 */
 
-#if IS_ENABLED(CONFIG_USB_OTG_FSM)
+#if IS_ENABLED(CONFIG_USB_OTG)
 
 int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci);
 int ci_otg_fsm_work(struct ci_hdrc *ci);
