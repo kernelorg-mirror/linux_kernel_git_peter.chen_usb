@@ -127,7 +127,7 @@ int write_ulpi(u8 addr, u8 data)
 /* Operations that will be called from OTG Finite State Machine */
 
 /* Charge vbus for vbus pulsing in SRP */
-void fsl_otg_chrg_vbus(struct otg_fsm *fsm, int on)
+void fsl_otg_chrg_vbus(struct usb_otg *otg, int on)
 {
 	u32 tmp;
 
@@ -163,7 +163,7 @@ void fsl_otg_dischrg_vbus(int on)
 }
 
 /* A-device driver vbus, controlled through PP bit in PORTSC */
-void fsl_otg_drv_vbus(struct otg_fsm *fsm, int on)
+void fsl_otg_drv_vbus(struct usb_otg *otg, int on)
 {
 	u32 tmp;
 
@@ -181,7 +181,7 @@ void fsl_otg_drv_vbus(struct otg_fsm *fsm, int on)
  * Pull-up D+, signalling connect by periperal. Also used in
  * data-line pulsing in SRP
  */
-void fsl_otg_loc_conn(struct otg_fsm *fsm, int on)
+void fsl_otg_loc_conn(struct usb_otg *otg, int on)
 {
 	u32 tmp;
 
@@ -200,7 +200,7 @@ void fsl_otg_loc_conn(struct otg_fsm *fsm, int on)
  * port.  In host mode, controller will automatically send SOF.
  * Suspend will block the data on the port.
  */
-void fsl_otg_loc_sof(struct otg_fsm *fsm, int on)
+void fsl_otg_loc_sof(struct usb_otg *otg, int on)
 {
 	u32 tmp;
 
@@ -215,7 +215,7 @@ void fsl_otg_loc_sof(struct otg_fsm *fsm, int on)
 }
 
 /* Start SRP pulsing by data-line pulsing, followed with v-bus pulsing. */
-void fsl_otg_start_pulse(struct otg_fsm *fsm)
+void fsl_otg_start_pulse(struct usb_otg *otg)
 {
 	u32 tmp;
 
@@ -228,7 +228,7 @@ void fsl_otg_start_pulse(struct otg_fsm *fsm)
 	fsl_otg_loc_conn(1);
 #endif
 
-	fsl_otg_add_timer(fsm, b_data_pulse_tmr);
+	fsl_otg_add_timer(&otg->fsm, b_data_pulse_tmr);
 }
 
 void b_data_pulse_end(unsigned long foo)
@@ -245,14 +245,14 @@ void b_data_pulse_end(unsigned long foo)
 void fsl_otg_pulse_vbus(void)
 {
 	srp_wait_done = 0;
-	fsl_otg_chrg_vbus(&fsl_otg_dev->fsm, 1);
+	fsl_otg_chrg_vbus(&fsl_otg_dev->otg, 1);
 	/* start the timer to end vbus charge */
-	fsl_otg_add_timer(&fsl_otg_dev->fsm, b_vbus_pulse_tmr);
+	fsl_otg_add_timer(&fsl_otg_dev->otg.fsm, b_vbus_pulse_tmr);
 }
 
 void b_vbus_pulse_end(unsigned long foo)
 {
-	fsl_otg_chrg_vbus(&fsl_otg_dev->fsm, 0);
+	fsl_otg_chrg_vbus(&fsl_otg_dev->otg, 0);
 
 	/*
 	 * As USB3300 using the same a_sess_vld and b_sess_vld voltage
@@ -260,7 +260,7 @@ void b_vbus_pulse_end(unsigned long foo)
 	 * residual voltage of vbus pulsing and A device pull up
 	 */
 	fsl_otg_dischrg_vbus(1);
-	fsl_otg_add_timer(&fsl_otg_dev->fsm, b_srp_wait_tmr);
+	fsl_otg_add_timer(&fsl_otg_dev->otg.fsm, b_srp_wait_tmr);
 }
 
 void b_srp_end(unsigned long foo)
@@ -269,8 +269,8 @@ void b_srp_end(unsigned long foo)
 	srp_wait_done = 1;
 
 	if ((fsl_otg_dev->phy.otg->state == OTG_STATE_B_SRP_INIT) &&
-	    fsl_otg_dev->fsm.b_sess_vld)
-		fsl_otg_dev->fsm.b_srp_done = 1;
+	    fsl_otg_dev->otg.fsm.b_sess_vld)
+		fsl_otg_dev->otg.fsm.b_srp_done = 1;
 }
 
 /*
@@ -282,9 +282,9 @@ void a_wait_enum(unsigned long foo)
 {
 	VDBG("a_wait_enum timeout\n");
 	if (!fsl_otg_dev->phy.otg->host->b_hnp_enable)
-		fsl_otg_add_timer(&fsl_otg_dev->fsm, a_wait_enum_tmr);
+		fsl_otg_add_timer(&fsl_otg_dev->otg.fsm, a_wait_enum_tmr);
 	else
-		otg_statemachine(&fsl_otg_dev->fsm);
+		otg_statemachine(&fsl_otg_dev->otg);
 }
 
 /* The timeout callback function to set time out bit */
@@ -421,7 +421,7 @@ void fsl_otg_add_timer(struct otg_fsm *fsm, void *gtimer)
 	list_add_tail(&timer->list, &active_timers);
 }
 
-static void fsl_otg_fsm_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
+static void fsl_otg_fsm_add_timer(struct usb_otg *otg, enum otg_fsm_timer t)
 {
 	struct fsl_otg_timer *timer;
 
@@ -429,7 +429,7 @@ static void fsl_otg_fsm_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
 	if (!timer)
 		return;
 
-	fsl_otg_add_timer(fsm, timer);
+	fsl_otg_add_timer(&otg->fsm, timer);
 }
 
 /* Remove timer from the timer list; clear timeout status */
@@ -443,7 +443,7 @@ void fsl_otg_del_timer(struct otg_fsm *fsm, void *gtimer)
 			list_del(&timer->list);
 }
 
-static void fsl_otg_fsm_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
+static void fsl_otg_fsm_del_timer(struct usb_otg *otg, enum otg_fsm_timer t)
 {
 	struct fsl_otg_timer *timer;
 
@@ -451,7 +451,7 @@ static void fsl_otg_fsm_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
 	if (!timer)
 		return;
 
-	fsl_otg_del_timer(fsm, timer);
+	fsl_otg_del_timer(&otg->fsm, timer);
 }
 
 /* Reset controller, not reset the bus */
@@ -467,9 +467,9 @@ void otg_reset_controller(void)
 }
 
 /* Call suspend/resume routines in host driver */
-int fsl_otg_start_host(struct otg_fsm *fsm, int on)
+int fsl_otg_start_host(struct usb_otg *otg, int on)
 {
-	struct usb_otg *otg = fsm->otg;
+	struct otg_fsm *fsm = &otg->fsm;
 	struct device *dev;
 	struct fsl_otg *otg_dev =
 		container_of(otg->usb_phy, struct fsl_otg, phy);
@@ -496,7 +496,7 @@ int fsl_otg_start_host(struct otg_fsm *fsm, int on)
 				retval = dev->driver->pm->resume(dev);
 				if (fsm->id) {
 					/* default-b */
-					fsl_otg_drv_vbus(fsm, 1);
+					fsl_otg_drv_vbus(otg, 1);
 					/*
 					 * Workaround: b_host can't driver
 					 * vbus, but PP in PORTSC needs to
@@ -521,7 +521,7 @@ int fsl_otg_start_host(struct otg_fsm *fsm, int on)
 					retval = dev->driver->pm->suspend(dev);
 				if (fsm->id)
 					/* default-b */
-					fsl_otg_drv_vbus(fsm, 0);
+					fsl_otg_drv_vbus(otg, 0);
 			}
 			otg_dev->host_working = 0;
 		}
@@ -534,9 +534,8 @@ end:
  * Call suspend and resume function in udc driver
  * to stop and start udc driver.
  */
-int fsl_otg_start_gadget(struct otg_fsm *fsm, int on)
+int fsl_otg_start_gadget(struct usb_otg *otg, int on)
 {
-	struct usb_otg *otg = fsm->otg;
 	struct device *dev;
 
 	if (!otg->gadget || !otg->gadget->dev.parent)
@@ -573,14 +572,14 @@ static int fsl_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 
 	otg->host = host;
 
-	otg_dev->fsm.a_bus_drop = 0;
-	otg_dev->fsm.a_bus_req = 1;
+	otg->fsm.a_bus_drop = 0;
+	otg->fsm.a_bus_req = 1;
 
 	if (host) {
 		VDBG("host off......\n");
 
 		otg->host->otg_port = fsl_otg_initdata.otg_port;
-		otg->host->is_b_host = otg_dev->fsm.id;
+		otg->host->is_b_host = otg->fsm.id;
 		/*
 		 * must leave time for hub_wq to finish its thing
 		 * before yanking the host driver out from under it,
@@ -594,7 +593,7 @@ static int fsl_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 		if (!(fsl_readl(&otg_dev->dr_mem_map->otgsc) &
 		      OTGSC_STS_USB_ID)) {
 			/* Mini-A cable connected */
-			struct otg_fsm *fsm = &otg_dev->fsm;
+			struct otg_fsm *fsm = &otg->fsm;
 
 			otg->state = OTG_STATE_UNDEFINED;
 			fsm->protocol = PROTO_UNDEF;
@@ -603,7 +602,7 @@ static int fsl_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 
 	otg_dev->host_working = 0;
 
-	otg_statemachine(&otg_dev->fsm);
+	otg_statemachine(otg);
 
 	return 0;
 }
@@ -628,22 +627,22 @@ static int fsl_otg_set_peripheral(struct usb_otg *otg,
 			otg->gadget->ops->vbus_draw(otg->gadget, 0);
 		usb_gadget_vbus_disconnect(otg->gadget);
 		otg->gadget = 0;
-		otg_dev->fsm.b_bus_req = 0;
-		otg_statemachine(&otg_dev->fsm);
+		otg->fsm.b_bus_req = 0;
+		otg_statemachine(otg);
 		return 0;
 	}
 
 	otg->gadget = gadget;
-	otg->gadget->is_a_peripheral = !otg_dev->fsm.id;
+	otg->gadget->is_a_peripheral = !otg->fsm.id;
 
-	otg_dev->fsm.b_bus_req = 1;
+	otg->fsm.b_bus_req = 1;
 
 	/* start the gadget right away if the ID pin says Mini-B */
-	pr_debug("ID pin=%d\n", otg_dev->fsm.id);
-	if (otg_dev->fsm.id == 1) {
-		fsl_otg_start_host(&otg_dev->fsm, 0);
-		otg_drv_vbus(&otg_dev->fsm, 0);
-		fsl_otg_start_gadget(&otg_dev->fsm, 1);
+	pr_debug("ID pin=%d\n", otg->fsm.id);
+	if (otg->fsm.id == 1) {
+		fsl_otg_start_host(otg, 0);
+		otg_drv_vbus(otg, 0);
+		fsl_otg_start_gadget(otg, 1);
 	}
 
 	return 0;
@@ -672,13 +671,14 @@ static int fsl_otg_set_power(struct usb_phy *phy, unsigned mA)
  */
 static void fsl_otg_event(struct work_struct *work)
 {
-	struct fsl_otg *og = container_of(work, struct fsl_otg, otg_event.work);
-	struct otg_fsm *fsm = &og->fsm;
+	struct fsl_otg *fotg = container_of(work, struct fsl_otg,
+					    otg_event.work);
+	struct usb_otg *otg = &fotg->otg;
 
-	if (fsm->id) {		/* switch to gadget */
-		fsl_otg_start_host(fsm, 0);
-		otg_drv_vbus(fsm, 0);
-		fsl_otg_start_gadget(fsm, 1);
+	if (otg->fsm.id) {		/* switch to gadget */
+		fsl_otg_start_host(otg, 0);
+		otg_drv_vbus(otg, 0);
+		fsl_otg_start_gadget(otg, 1);
 	}
 }
 
@@ -694,8 +694,8 @@ static int fsl_otg_start_srp(struct usb_otg *otg)
 	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
-	otg_dev->fsm.b_bus_req = 1;
-	otg_statemachine(&otg_dev->fsm);
+	otg->fsm.b_bus_req = 1;
+	otg_statemachine(otg);
 
 	return 0;
 }
@@ -715,8 +715,8 @@ static int fsl_otg_start_hnp(struct usb_otg *otg)
 	pr_debug("start_hnp...\n");
 
 	/* clear a_bus_req to enter a_suspend state */
-	otg_dev->fsm.a_bus_req = 0;
-	otg_statemachine(&otg_dev->fsm);
+	otg->fsm.a_bus_req = 0;
+	otg_statemachine(otg);
 
 	return 0;
 }
@@ -729,8 +729,8 @@ static int fsl_otg_start_hnp(struct usb_otg *otg)
  */
 irqreturn_t fsl_otg_isr(int irq, void *dev_id)
 {
-	struct otg_fsm *fsm = &((struct fsl_otg *)dev_id)->fsm;
-	struct usb_otg *otg = ((struct fsl_otg *)dev_id)->phy.otg;
+	struct usb_otg *otg = &((struct fsl_otg *)dev_id)->otg;
+	struct otg_fsm *fsm = &otg->fsm;
 	u32 otg_int_src, otg_sc;
 
 	otg_sc = fsl_readl(&usb_dr_regs->otgsc);
@@ -768,9 +768,9 @@ irqreturn_t fsl_otg_isr(int irq, void *dev_id)
 				cancel_delayed_work(&
 						    ((struct fsl_otg *)dev_id)->
 						    otg_event);
-				fsl_otg_start_gadget(fsm, 0);
-				otg_drv_vbus(fsm, 1);
-				fsl_otg_start_host(fsm, 1);
+				fsl_otg_start_gadget(otg, 0);
+				otg_drv_vbus(otg, 1);
+				fsl_otg_start_host(otg, 1);
 			}
 			return IRQ_HANDLED;
 		}
@@ -806,24 +806,20 @@ static int fsl_otg_conf(struct platform_device *pdev)
 	if (!fsl_otg_tc)
 		return -ENOMEM;
 
-	fsl_otg_tc->phy.otg = kzalloc(sizeof(struct usb_otg), GFP_KERNEL);
-	if (!fsl_otg_tc->phy.otg) {
-		kfree(fsl_otg_tc);
-		return -ENOMEM;
-	}
+	fsl_otg_tc->phy.otg = &fsl_otg_tc->otg;
 
 	INIT_DELAYED_WORK(&fsl_otg_tc->otg_event, fsl_otg_event);
 
 	INIT_LIST_HEAD(&active_timers);
-	status = fsl_otg_init_timers(&fsl_otg_tc->fsm);
+	status = fsl_otg_init_timers(&fsl_otg_tc->otg.fsm);
 	if (status) {
 		pr_info("Couldn't init OTG timers\n");
 		goto err;
 	}
-	mutex_init(&fsl_otg_tc->fsm.lock);
+	mutex_init(&fsl_otg_tc->otg.fsm.lock);
 
 	/* Set OTG state machine operations */
-	fsl_otg_tc->fsm.ops = &fsl_otg_ops;
+	fsl_otg_tc->otg.fsm.ops = &fsl_otg_ops;
 
 	/* initialize the otg structure */
 	fsl_otg_tc->phy.label = DRIVER_DESC;
@@ -858,18 +854,15 @@ int usb_otg_start(struct platform_device *pdev)
 {
 	struct fsl_otg *p_otg;
 	struct usb_phy *otg_trans = usb_get_phy(USB_PHY_TYPE_USB2);
-	struct otg_fsm *fsm;
 	int status;
 	struct resource *res;
 	u32 temp;
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	p_otg = container_of(otg_trans, struct fsl_otg, phy);
-	fsm = &p_otg->fsm;
 
 	/* Initialize the state machine structure with default values */
 	SET_OTG_STATE(otg_trans, OTG_STATE_UNDEFINED);
-	fsm->otg = p_otg->phy.otg;
 
 	/* We don't require predefined MEM/IRQ resource index */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -963,13 +956,13 @@ int usb_otg_start(struct platform_device *pdev)
 	 */
 	if (fsl_readl(&p_otg->dr_mem_map->otgsc) & OTGSC_STS_USB_ID) {
 		p_otg->phy.otg->state = OTG_STATE_UNDEFINED;
-		p_otg->fsm.id = 1;
+		p_otg->otg.fsm.id = 1;
 	} else {
 		p_otg->phy.otg->state = OTG_STATE_A_IDLE;
-		p_otg->fsm.id = 0;
+		p_otg->otg.fsm.id = 0;
 	}
 
-	pr_debug("initial ID pin=%d\n", p_otg->fsm.id);
+	pr_debug("initial ID pin=%d\n", p_otg->otg.fsm.id);
 
 	/* enable OTG ID pin interrupt */
 	temp = fsl_readl(&p_otg->dr_mem_map->otgsc);
@@ -986,7 +979,7 @@ int usb_otg_start(struct platform_device *pdev)
 static int show_fsl_usb2_otg_state(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct otg_fsm *fsm = &fsl_otg_dev->fsm;
+	struct otg_fsm *fsm = &fsl_otg_dev->otg.fsm;
 	char *next = buf;
 	unsigned size = PAGE_SIZE;
 	int t;
@@ -1084,26 +1077,26 @@ static long fsl_otg_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case SET_A_SUSPEND_REQ:
-		fsl_otg_dev->fsm.a_suspend_req_inf = arg;
+		fsl_otg_dev->otg.fsm.a_suspend_req_inf = arg;
 		break;
 
 	case SET_A_BUS_DROP:
-		fsl_otg_dev->fsm.a_bus_drop = arg;
+		fsl_otg_dev->otg.fsm.a_bus_drop = arg;
 		break;
 
 	case SET_A_BUS_REQ:
-		fsl_otg_dev->fsm.a_bus_req = arg;
+		fsl_otg_dev->otg.fsm.a_bus_req = arg;
 		break;
 
 	case SET_B_BUS_REQ:
-		fsl_otg_dev->fsm.b_bus_req = arg;
+		fsl_otg_dev->otg.fsm.b_bus_req = arg;
 		break;
 
 	default:
 		break;
 	}
 
-	otg_statemachine(&fsl_otg_dev->fsm);
+	otg_statemachine(&fsl_otg_dev->otg);
 
 	return retval;
 }

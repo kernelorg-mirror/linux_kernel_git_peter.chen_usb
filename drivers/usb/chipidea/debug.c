@@ -224,7 +224,7 @@ static int ci_otg_show(struct seq_file *s, void *unused)
 	if (!ci || !ci_otg_is_fsm_mode(ci))
 		return 0;
 
-	fsm = &ci->fsm;
+	fsm = &ci->otg.fsm;
 
 	/* ------ State ----- */
 	seq_printf(s, "OTG state: %s\n\n",

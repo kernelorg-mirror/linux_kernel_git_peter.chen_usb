@@ -209,7 +209,6 @@ struct ci_hdrc {
 	enum ci_role			role;
 	bool				is_otg;
 	struct usb_otg			otg;
-	struct otg_fsm			fsm;
 	struct hrtimer			otg_fsm_hrtimer;
 	ktime_t				hr_timeouts[NUM_OTG_FSM_TIMERS];
 	unsigned			enabled_otg_timer_bits;

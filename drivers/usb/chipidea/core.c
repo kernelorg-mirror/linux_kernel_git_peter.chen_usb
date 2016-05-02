@@ -1085,8 +1085,8 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 /* Prepare wakeup by SRP before suspend */
 static void ci_otg_fsm_suspend_for_srp(struct ci_hdrc *ci)
 {
-	if ((ci->fsm.otg->state == OTG_STATE_A_IDLE) &&
-				!hw_read_otgsc(ci, OTGSC_ID)) {
+	if ((ci->otg.state == OTG_STATE_A_IDLE) &&
+	    !hw_read_otgsc(ci, OTGSC_ID)) {
 		hw_write(ci, OP_PORTSC, PORTSC_W1C_BITS | PORTSC_PP,
 								PORTSC_PP);
 		hw_write(ci, OP_PORTSC, PORTSC_W1C_BITS | PORTSC_WKCN,
@@ -1097,13 +1097,13 @@ static void ci_otg_fsm_suspend_for_srp(struct ci_hdrc *ci)
 /* Handle SRP when wakeup by data pulse */
 static void ci_otg_fsm_wakeup_by_srp(struct ci_hdrc *ci)
 {
-	if ((ci->fsm.otg->state == OTG_STATE_A_IDLE) &&
-		(ci->fsm.a_bus_drop == 1) && (ci->fsm.a_bus_req == 0)) {
+	if ((ci->otg.state == OTG_STATE_A_IDLE) &&
+	    (ci->otg.fsm.a_bus_drop == 1) && (ci->otg.fsm.a_bus_req == 0)) {
 		if (!hw_read_otgsc(ci, OTGSC_ID)) {
-			ci->fsm.a_srp_det = 1;
-			ci->fsm.a_bus_drop = 0;
+			ci->otg.fsm.a_srp_det = 1;
+			ci->otg.fsm.a_bus_drop = 0;
 		} else {
-			ci->fsm.id = 1;
+			ci->otg.fsm.id = 1;
 		}
 		ci_otg_queue_work(ci);
 	}

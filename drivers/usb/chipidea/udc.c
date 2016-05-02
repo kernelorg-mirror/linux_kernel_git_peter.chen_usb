@@ -20,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/otg.h>
 #include <linux/usb/otg-fsm.h>
 #include <linux/usb/chipidea.h>
 
@@ -1739,7 +1740,7 @@ static int ci_udc_start(struct usb_gadget *gadget,
 	ci->driver = driver;
 
 	/* Start otg fsm for B-device */
-	if (ci_otg_is_fsm_mode(ci) && ci->fsm.id) {
+	if (ci_otg_is_fsm_mode(ci) && ci->otg.fsm.id) {
 		ci_hdrc_otg_fsm_start(ci);
 		return retval;
 	}
@@ -1767,15 +1768,15 @@ static void ci_udc_stop_for_otg_fsm(struct ci_hdrc *ci)
 	if (!ci_otg_is_fsm_mode(ci))
 		return;
 
-	mutex_lock(&ci->fsm.lock);
-	if (ci->fsm.otg->state == OTG_STATE_A_PERIPHERAL) {
-		ci->fsm.a_bidl_adis_tmout = 1;
+	mutex_lock(&ci->otg.fsm.lock);
+	if (ci->otg.state == OTG_STATE_A_PERIPHERAL) {
+		ci->otg.fsm.a_bidl_adis_tmout = 1;
 		ci_hdrc_otg_fsm_start(ci);
-	} else if (ci->fsm.otg->state == OTG_STATE_B_PERIPHERAL) {
-		ci->fsm.protocol = PROTO_UNDEF;
-		ci->fsm.otg->state = OTG_STATE_UNDEFINED;
+	} else if (ci->otg.state == OTG_STATE_B_PERIPHERAL) {
+		ci->otg.fsm.protocol = PROTO_UNDEF;
+		ci->otg.state = OTG_STATE_UNDEFINED;
 	}
-	mutex_unlock(&ci->fsm.lock);
+	mutex_unlock(&ci->otg.fsm.lock);
 }
 
 /**

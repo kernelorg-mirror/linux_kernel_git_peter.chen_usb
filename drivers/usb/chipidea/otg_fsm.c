@@ -40,7 +40,7 @@ get_a_bus_req(struct device *dev, struct device_attribute *attr, char *buf)
 
 	next = buf;
 	size = PAGE_SIZE;
-	t = scnprintf(next, size, "%d\n", ci->fsm.a_bus_req);
+	t = scnprintf(next, size, "%d\n", ci->otg.fsm.a_bus_req);
 	size -= t;
 	next += t;
 
@@ -56,25 +56,25 @@ set_a_bus_req(struct device *dev, struct device_attribute *attr,
 	if (count > 2)
 		return -1;
 
-	mutex_lock(&ci->fsm.lock);
+	mutex_lock(&ci->otg.fsm.lock);
 	if (buf[0] == '0') {
-		ci->fsm.a_bus_req = 0;
+		ci->otg.fsm.a_bus_req = 0;
 	} else if (buf[0] == '1') {
 		/* If a_bus_drop is TRUE, a_bus_req can't be set */
-		if (ci->fsm.a_bus_drop) {
-			mutex_unlock(&ci->fsm.lock);
+		if (ci->otg.fsm.a_bus_drop) {
+			mutex_unlock(&ci->otg.fsm.lock);
 			return count;
 		}
-		ci->fsm.a_bus_req = 1;
-		if (ci->fsm.otg->state == OTG_STATE_A_PERIPHERAL) {
+		ci->otg.fsm.a_bus_req = 1;
+		if (ci->otg.state == OTG_STATE_A_PERIPHERAL) {
 			ci->gadget.host_request_flag = 1;
-			mutex_unlock(&ci->fsm.lock);
+			mutex_unlock(&ci->otg.fsm.lock);
 			return count;
 		}
 	}
 
 	ci_otg_queue_work(ci);
-	mutex_unlock(&ci->fsm.lock);
+	mutex_unlock(&ci->otg.fsm.lock);
 
 	return count;
 }
@@ -89,7 +89,7 @@ get_a_bus_drop(struct device *dev, struct device_attribute *attr, char *buf)
 
 	next = buf;
 	size = PAGE_SIZE;
-	t = scnprintf(next, size, "%d\n", ci->fsm.a_bus_drop);
+	t = scnprintf(next, size, "%d\n", ci->otg.fsm.a_bus_drop);
 	size -= t;
 	next += t;
 
@@ -105,16 +105,16 @@ set_a_bus_drop(struct device *dev, struct device_attribute *attr,
 	if (count > 2)
 		return -1;
 
-	mutex_lock(&ci->fsm.lock);
+	mutex_lock(&ci->otg.fsm.lock);
 	if (buf[0] == '0') {
-		ci->fsm.a_bus_drop = 0;
+		ci->otg.fsm.a_bus_drop = 0;
 	} else if (buf[0] == '1') {
-		ci->fsm.a_bus_drop = 1;
-		ci->fsm.a_bus_req = 0;
+		ci->otg.fsm.a_bus_drop = 1;
+		ci->otg.fsm.a_bus_req = 0;
 	}
 
 	ci_otg_queue_work(ci);
-	mutex_unlock(&ci->fsm.lock);
+	mutex_unlock(&ci->otg.fsm.lock);
 
 	return count;
 }
@@ -130,7 +130,7 @@ get_b_bus_req(struct device *dev, struct device_attribute *attr, char *buf)
 
 	next = buf;
 	size = PAGE_SIZE;
-	t = scnprintf(next, size, "%d\n", ci->fsm.b_bus_req);
+	t = scnprintf(next, size, "%d\n", ci->otg.fsm.b_bus_req);
 	size -= t;
 	next += t;
 
@@ -146,20 +146,20 @@ set_b_bus_req(struct device *dev, struct device_attribute *attr,
 	if (count > 2)
 		return -1;
 
-	mutex_lock(&ci->fsm.lock);
+	mutex_lock(&ci->otg.fsm.lock);
 	if (buf[0] == '0')
-		ci->fsm.b_bus_req = 0;
+		ci->otg.fsm.b_bus_req = 0;
 	else if (buf[0] == '1') {
-		ci->fsm.b_bus_req = 1;
-		if (ci->fsm.otg->state == OTG_STATE_B_PERIPHERAL) {
+		ci->otg.fsm.b_bus_req = 1;
+		if (ci->otg.state == OTG_STATE_B_PERIPHERAL) {
 			ci->gadget.host_request_flag = 1;
-			mutex_unlock(&ci->fsm.lock);
+			mutex_unlock(&ci->otg.fsm.lock);
 			return count;
 		}
 	}
 
 	ci_otg_queue_work(ci);
-	mutex_unlock(&ci->fsm.lock);
+	mutex_unlock(&ci->otg.fsm.lock);
 
 	return count;
 }
@@ -174,12 +174,12 @@ set_a_clr_err(struct device *dev, struct device_attribute *attr,
 	if (count > 2)
 		return -1;
 
-	mutex_lock(&ci->fsm.lock);
+	mutex_lock(&ci->otg.fsm.lock);
 	if (buf[0] == '1')
-		ci->fsm.a_clr_err = 1;
+		ci->otg.fsm.a_clr_err = 1;
 
 	ci_otg_queue_work(ci);
-	mutex_unlock(&ci->fsm.lock);
+	mutex_unlock(&ci->otg.fsm.lock);
 
 	return count;
 }
@@ -287,64 +287,64 @@ static void ci_otg_del_timer(struct ci_hdrc *ci, enum otg_fsm_timer t)
 /* OTG FSM timer handlers */
 static int a_wait_vrise_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.a_wait_vrise_tmout = 1;
+	ci->otg.fsm.a_wait_vrise_tmout = 1;
 	return 0;
 }
 
 static int a_wait_vfall_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.a_wait_vfall_tmout = 1;
+	ci->otg.fsm.a_wait_vfall_tmout = 1;
 	return 0;
 }
 
 static int a_wait_bcon_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.a_wait_bcon_tmout = 1;
+	ci->otg.fsm.a_wait_bcon_tmout = 1;
 	return 0;
 }
 
 static int a_aidl_bdis_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.a_aidl_bdis_tmout = 1;
+	ci->otg.fsm.a_aidl_bdis_tmout = 1;
 	return 0;
 }
 
 static int b_ase0_brst_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.b_ase0_brst_tmout = 1;
+	ci->otg.fsm.b_ase0_brst_tmout = 1;
 	return 0;
 }
 
 static int a_bidl_adis_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.a_bidl_adis_tmout = 1;
+	ci->otg.fsm.a_bidl_adis_tmout = 1;
 	return 0;
 }
 
 static int b_aidl_bdis_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.a_bus_suspend = 1;
+	ci->otg.fsm.a_bus_suspend = 1;
 	return 0;
 }
 
 static int b_se0_srp_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.b_se0_srp = 1;
+	ci->otg.fsm.b_se0_srp = 1;
 	return 0;
 }
 
 static int b_srp_fail_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.b_srp_done = 1;
+	ci->otg.fsm.b_srp_done = 1;
 	return 1;
 }
 
 static int b_data_pls_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.b_srp_done = 1;
-	ci->fsm.b_bus_req = 0;
-	if (ci->fsm.power_up)
-		ci->fsm.power_up = 0;
+	ci->otg.fsm.b_srp_done = 1;
+	ci->otg.fsm.b_bus_req = 0;
+	if (ci->otg.fsm.power_up)
+		ci->otg.fsm.power_up = 0;
 	hw_write_otgsc(ci, OTGSC_HABA, 0);
 	pm_runtime_put(ci->dev);
 	return 0;
@@ -352,9 +352,9 @@ static int b_data_pls_tmout(struct ci_hdrc *ci)
 
 static int b_ssend_srp_tmout(struct ci_hdrc *ci)
 {
-	ci->fsm.b_ssend_srp = 1;
+	ci->otg.fsm.b_ssend_srp = 1;
 	/* only vbus fall below B_sess_vld in b_idle state */
-	if (ci->fsm.otg->state == OTG_STATE_B_IDLE)
+	if (ci->otg.state == OTG_STATE_B_IDLE)
 		return 0;
 	else
 		return 1;
@@ -435,18 +435,18 @@ static int ci_otg_init_timers(struct ci_hdrc *ci)
 /* -------------------------------------------------------------*/
 /* Operations that will be called from OTG Finite State Machine */
 /* -------------------------------------------------------------*/
-static void ci_otg_fsm_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
+static void ci_otg_fsm_add_timer(struct usb_otg *otg, enum otg_fsm_timer t)
 {
-	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
+	struct ci_hdrc	*ci = container_of(otg, struct ci_hdrc, otg);
 
 	if (t < NUM_OTG_FSM_TIMERS)
 		ci_otg_add_timer(ci, t);
 	return;
 }
 
-static void ci_otg_fsm_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
+static void ci_otg_fsm_del_timer(struct usb_otg *otg, enum otg_fsm_timer t)
 {
-	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
+	struct ci_hdrc	*ci = container_of(otg, struct ci_hdrc, otg);
 
 	if (t < NUM_OTG_FSM_TIMERS)
 		ci_otg_del_timer(ci, t);
@@ -457,10 +457,10 @@ static void ci_otg_fsm_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
  * A-device drive vbus: turn on vbus regulator and enable port power
  * Data pulse irq should be disabled while vbus is on.
  */
-static void ci_otg_drv_vbus(struct otg_fsm *fsm, int on)
+static void ci_otg_drv_vbus(struct usb_otg *otg, int on)
 {
 	int ret;
-	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
+	struct ci_hdrc	*ci = container_of(otg, struct ci_hdrc, otg);
 
 	if (on) {
 		/* Enable power power */
@@ -478,23 +478,23 @@ static void ci_otg_drv_vbus(struct otg_fsm *fsm, int on)
 		/* Disable data pulse irq */
 		hw_write_otgsc(ci, OTGSC_DPIE, 0);
 
-		fsm->a_srp_det = 0;
-		fsm->power_up = 0;
+		otg->fsm.a_srp_det = 0;
+		otg->fsm.power_up = 0;
 	} else {
 		if (ci->platdata->reg_vbus)
 			regulator_disable(ci->platdata->reg_vbus);
 
-		fsm->a_bus_drop = 1;
-		fsm->a_bus_req = 0;
+		otg->fsm.a_bus_drop = 1;
+		otg->fsm.a_bus_req = 0;
 	}
 }
 
 /*
  * Control data line by Run Stop bit.
  */
-static void ci_otg_loc_conn(struct otg_fsm *fsm, int on)
+static void ci_otg_loc_conn(struct usb_otg *otg, int on)
 {
-	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
+	struct ci_hdrc	*ci = container_of(otg, struct ci_hdrc, otg);
 
 	if (on)
 		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
@@ -511,14 +511,14 @@ static void ci_otg_loc_conn(struct otg_fsm *fsm, int on)
  * so the usb device class driver need support autosuspend,
  * otherwise the bus suspend will not happen.
  */
-static void ci_otg_loc_sof(struct otg_fsm *fsm, int on)
+static void ci_otg_loc_sof(struct usb_otg *otg, int on)
 {
 	struct usb_device *udev;
 
-	if (!fsm->otg->host)
+	if (!otg->host)
 		return;
 
-	udev = usb_hub_find_child(fsm->otg->host->root_hub, 1);
+	udev = usb_hub_find_child(otg->host->root_hub, 1);
 	if (!udev)
 		return;
 
@@ -534,9 +534,9 @@ static void ci_otg_loc_sof(struct otg_fsm *fsm, int on)
  * Start SRP pulsing by data-line pulsing,
  * no v-bus pulsing followed
  */
-static void ci_otg_start_pulse(struct otg_fsm *fsm)
+static void ci_otg_start_pulse(struct usb_otg *otg)
 {
-	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
+	struct ci_hdrc	*ci = container_of(otg, struct ci_hdrc, otg);
 
 	/* Hardware Assistant Data pulse */
 	hw_write_otgsc(ci, OTGSC_HADP, OTGSC_HADP);
@@ -545,9 +545,9 @@ static void ci_otg_start_pulse(struct otg_fsm *fsm)
 	ci_otg_add_timer(ci, B_DATA_PLS);
 }
 
-static int ci_otg_start_host(struct otg_fsm *fsm, int on)
+static int ci_otg_start_host(struct usb_otg *otg, int on)
 {
-	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
+	struct ci_hdrc	*ci = container_of(otg, struct ci_hdrc, otg);
 
 	if (on) {
 		ci_role_stop(ci);
@@ -559,9 +559,9 @@ static int ci_otg_start_host(struct otg_fsm *fsm, int on)
 	return 0;
 }
 
-static int ci_otg_start_gadget(struct otg_fsm *fsm, int on)
+static int ci_otg_start_gadget(struct usb_otg *otg, int on)
 {
-	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
+	struct ci_hdrc	*ci = container_of(otg, struct ci_hdrc, otg);
 
 	if (on)
 		usb_gadget_vbus_connect(&ci->gadget);
@@ -588,13 +588,13 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 	 * Don't do fsm transition for B device
 	 * when there is no gadget class driver
 	 */
-	if (ci->fsm.id && !(ci->driver) &&
-		ci->fsm.otg->state < OTG_STATE_A_IDLE)
+	if (ci->otg.fsm.id && !(ci->driver) &&
+	    ci->otg.state < OTG_STATE_A_IDLE)
 		return 0;
 
 	pm_runtime_get_sync(ci->dev);
-	if (otg_statemachine(&ci->fsm)) {
-		if (ci->fsm.otg->state == OTG_STATE_A_IDLE) {
+	if (otg_statemachine(&ci->otg)) {
+		if (ci->otg.state == OTG_STATE_A_IDLE) {
 			/*
 			 * Further state change for cases:
 			 * a_idle to b_idle; or
@@ -603,8 +603,8 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 			 * consequently; or
 			 * a_idle to a_wait_vrise when power up
 			 */
-			if ((ci->fsm.id) || (ci->id_event) ||
-						(ci->fsm.power_up)) {
+			if ((ci->otg.fsm.id) || (ci->id_event) ||
+			    (ci->otg.fsm.power_up)) {
 				ci_otg_queue_work(ci);
 			} else {
 				/* Enable data pulse irq */
@@ -615,16 +615,16 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 			}
 			if (ci->id_event)
 				ci->id_event = false;
-		} else if (ci->fsm.otg->state == OTG_STATE_B_IDLE) {
-			if (ci->fsm.b_sess_vld) {
-				ci->fsm.power_up = 0;
+		} else if (ci->otg.state == OTG_STATE_B_IDLE) {
+			if (ci->otg.fsm.b_sess_vld) {
+				ci->otg.fsm.power_up = 0;
 				/*
 				 * Further transite to b_periphearl state
 				 * when register gadget driver with vbus on
 				 */
 				ci_otg_queue_work(ci);
 			}
-		} else if (ci->fsm.otg->state == OTG_STATE_A_HOST) {
+		} else if (ci->otg.state == OTG_STATE_A_HOST) {
 			pm_runtime_mark_last_busy(ci->dev);
 			pm_runtime_put_autosuspend(ci->dev);
 			return 0;
@@ -641,13 +641,13 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 static void ci_otg_fsm_event(struct ci_hdrc *ci)
 {
 	u32 intr_sts, otg_bsess_vld, port_conn;
-	struct otg_fsm *fsm = &ci->fsm;
+	struct otg_fsm *fsm = &ci->otg.fsm;
 
 	intr_sts = hw_read_intr_status(ci);
 	otg_bsess_vld = hw_read_otgsc(ci, OTGSC_BSV);
 	port_conn = hw_read(ci, OP_PORTSC, PORTSC_CCS);
 
-	switch (ci->fsm.otg->state) {
+	switch (ci->otg.state) {
 	case OTG_STATE_A_WAIT_BCON:
 		if (port_conn) {
 			fsm->b_conn = 1;
@@ -737,7 +737,7 @@ irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 {
 	irqreturn_t retval =  IRQ_NONE;
 	u32 otgsc, otg_int_src = 0;
-	struct otg_fsm *fsm = &ci->fsm;
+	struct otg_fsm *fsm = &ci->otg.fsm;
 
 	otgsc = hw_read_otgsc(ci, ~0);
 	otg_int_src = otgsc & OTGSC_INT_STATUS_BITS & (otgsc >> 8);
@@ -800,17 +800,16 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 		ci->otg.usb_phy = ci->usb_phy;
 
 	ci->otg.gadget = &ci->gadget;
-	ci->fsm.otg = &ci->otg;
-	ci->fsm.power_up = 1;
-	ci->fsm.id = hw_read_otgsc(ci, OTGSC_ID) ? 1 : 0;
-	ci->fsm.otg->state = OTG_STATE_UNDEFINED;
-	ci->fsm.ops = &ci_otg_ops;
+	ci->otg.fsm.power_up = 1;
+	ci->otg.fsm.id = hw_read_otgsc(ci, OTGSC_ID) ? 1 : 0;
+	ci->otg.state = OTG_STATE_UNDEFINED;
+	ci->otg.fsm.ops = &ci_otg_ops;
 	ci->gadget.hnp_polling_support = 1;
-	ci->fsm.host_req_flag = devm_kzalloc(ci->dev, 1, GFP_KERNEL);
-	if (!ci->fsm.host_req_flag)
+	ci->otg.fsm.host_req_flag = devm_kzalloc(ci->dev, 1, GFP_KERNEL);
+	if (!ci->otg.fsm.host_req_flag)
 		return -ENOMEM;
 
-	mutex_init(&ci->fsm.lock);
+	mutex_init(&ci->otg.fsm.lock);
 
 	retval = ci_otg_init_timers(ci);
 	if (retval) {
@@ -830,10 +829,10 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 	/* Enable A vbus valid irq */
 	hw_write_otgsc(ci, OTGSC_AVVIE, OTGSC_AVVIE);
 
-	if (ci->fsm.id) {
-		ci->fsm.b_ssend_srp =
+	if (ci->otg.fsm.id) {
+		ci->otg.fsm.b_ssend_srp =
 			hw_read_otgsc(ci, OTGSC_BSV) ? 0 : 1;
-		ci->fsm.b_sess_vld =
+		ci->otg.fsm.b_sess_vld =
 			hw_read_otgsc(ci, OTGSC_BSV) ? 1 : 0;
 		/* Enable BSV irq */
 		hw_write_otgsc(ci, OTGSC_BSVIE, OTGSC_BSVIE);
