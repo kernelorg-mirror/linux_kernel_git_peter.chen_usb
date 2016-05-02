@@ -30,13 +30,6 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/otg-fsm.h>
 
-#ifdef VERBOSE
-#define VDBG(fmt, args...) pr_debug("[%s]  " fmt , \
-				 __func__, ## args)
-#else
-#define VDBG(stuff...)	do {} while (0)
-#endif
-
 /* Change USB protocol when there is a protocol change */
 static int otg_set_protocol(struct otg_fsm *fsm, int protocol)
 {
@@ -44,8 +37,9 @@ static int otg_set_protocol(struct otg_fsm *fsm, int protocol)
 	int ret = 0;
 
 	if (fsm->protocol != protocol) {
-		VDBG("Changing role fsm->protocol= %d; new protocol= %d\n",
-			fsm->protocol, protocol);
+		dev_vdbg(otg->dev,
+			 "Changing role fsm->protocol= %d; new protocol= %d\n",
+			 fsm->protocol, protocol);
 		/* stop old protocol */
 		if (fsm->protocol == PROTO_HOST)
 			ret = otg_start_host(otg, 0);
@@ -226,7 +220,7 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 
 	if (otg->state == new_state)
 		return 0;
-	VDBG("Set state: %s\n", usb_otg_state_string(new_state));
+	dev_vdbg(otg->dev, "Set state: %s\n", usb_otg_state_string(new_state));
 	otg_leave_state(fsm, otg->state);
 	switch (new_state) {
 	case OTG_STATE_B_IDLE:
@@ -358,7 +352,7 @@ int otg_statemachine(struct usb_otg *otg)
 
 	switch (state) {
 	case OTG_STATE_UNDEFINED:
-		VDBG("fsm->id = %d\n", fsm->id);
+		dev_vdbg(otg->dev, "fsm->id = %d\n", fsm->id);
 		if (fsm->id)
 			otg_set_state(fsm, OTG_STATE_B_IDLE);
 		else
@@ -466,7 +460,8 @@ int otg_statemachine(struct usb_otg *otg)
 	}
 	mutex_unlock(&fsm->lock);
 
-	VDBG("quit statemachine, changed = %d\n", fsm->state_changed);
+	dev_vdbg(otg->dev, "quit statemachine, changed = %d\n",
+		 fsm->state_changed);
 	return fsm->state_changed;
 }
 EXPORT_SYMBOL_GPL(otg_statemachine);
