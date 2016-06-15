@@ -44,16 +44,20 @@ static void mmc_pwrseq_simple_set_gpios_value(struct mmc_pwrseq_simple *pwrseq,
 	}
 }
 
-static void mmc_pwrseq_simple_pre_power_on(struct pwrseq *_pwrseq)
+static int mmc_pwrseq_simple_pre_power_on(struct pwrseq *_pwrseq)
 {
 	struct mmc_pwrseq_simple *pwrseq = to_pwrseq_simple(_pwrseq);
+	int ret = 0;
 
 	if (!IS_ERR(pwrseq->ext_clk) && !pwrseq->clk_enabled) {
-		clk_prepare_enable(pwrseq->ext_clk);
-		pwrseq->clk_enabled = true;
+		ret = clk_prepare_enable(pwrseq->ext_clk);
+		if (!ret)
+			pwrseq->clk_enabled = true;
 	}
 
 	mmc_pwrseq_simple_set_gpios_value(pwrseq, 1);
+
+	return 0;
 }
 
 static void mmc_pwrseq_simple_post_power_on(struct pwrseq *_pwrseq)

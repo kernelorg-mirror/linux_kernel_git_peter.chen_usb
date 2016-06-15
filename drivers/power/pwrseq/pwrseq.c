@@ -5,57 +5,74 @@
  *
  * License terms: GNU General Public License (GPL) version 2
  *
- *  MMC power sequence management
+ * Power sequence management helpers
  */
+
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/pwrseq.h>
 
-#include <linux/mmc/host.h>
 
 static DEFINE_MUTEX(pwrseq_list_mutex);
 static LIST_HEAD(pwrseq_list);
 
-int mmc_pwrseq_alloc(struct mmc_host *host)
+/**
+ * pwrseq_alloc: allocate one power sequence instance for host
+ *
+ * @np: device node which power sequence is contained
+ * @dev_name: if power sequence device has already created, it is NULL,
+ * (eg: mmc); else it is the name for power sequence device (eg: usb).
+ *
+ * This function returns power sequence pointer for this node if succeed,
+ * otherwise, returns an error pointer.
+ */
+struct pwrseq *pwrseq_alloc(struct device_node *np, const char *dev_name)
 {
-	struct device_node *np;
-	struct pwrseq *p;
+	struct pwrseq *p, *pwrseq = NULL;
+	bool created;
 
-	np = of_parse_phandle(host->parent->of_node, "mmc-pwrseq", 0);
-	if (!np)
-		return 0;
+	/* If there is no device is associated with this node, create it */
+	if (!of_find_device_by_node(np)) {
+		if (of_platform_device_create(np, dev_name, NULL))
+			created = true;
+		else
+			return ERR_PTR(-ENODEV);
+	}
 
 	mutex_lock(&pwrseq_list_mutex);
 	list_for_each_entry(p, &pwrseq_list, pwrseq_node) {
 		if (p->dev->of_node == np) {
 			if (!try_module_get(p->owner))
-				dev_err(host->parent,
+				dev_err(p->dev,
 					"increasing module refcount failed\n");
 			else
-				host->pwrseq = p;
-
+				pwrseq = p;
 			break;
 		}
 	}
 
-	of_node_put(np);
 	mutex_unlock(&pwrseq_list_mutex);
 
-	if (!host->pwrseq)
-		return -EPROBE_DEFER;
+	if (!pwrseq)
+		return ERR_PTR(-EPROBE_DEFER);
 
-	dev_info(host->parent, "allocated mmc-pwrseq\n");
+	pwrseq->create_dev_from_alloc = created;
+	dev_info(p->dev, "pwrseq is allocated\n");
 
-	return 0;
+	return pwrseq;
 }
-EXPORT_SYMBOL_GPL(mmc_pwrseq_alloc);
+EXPORT_SYMBOL_GPL(pwrseq_alloc);
 
-void pwrseq_pre_power_on(struct pwrseq *pwrseq)
+int pwrseq_pre_power_on(struct pwrseq *pwrseq)
 {
 	if (pwrseq && pwrseq->ops->pre_power_on)
-		pwrseq->ops->pre_power_on(pwrseq);
+		return pwrseq->ops->pre_power_on(pwrseq);
+	else
+		return 0;
 }
 EXPORT_SYMBOL_GPL(pwrseq_pre_power_on);
 
@@ -73,16 +90,15 @@ void pwrseq_power_off(struct pwrseq *pwrseq)
 }
 EXPORT_SYMBOL_GPL(pwrseq_power_off);
 
-void mmc_pwrseq_free(struct mmc_host *host)
+void pwrseq_free(struct pwrseq *pwrseq)
 {
-	struct pwrseq *pwrseq = host->pwrseq;
-
 	if (pwrseq) {
+		if (pwrseq->create_dev_from_alloc)
+			device_unregister(pwrseq->dev);
 		module_put(pwrseq->owner);
-		host->pwrseq = NULL;
 	}
 }
-EXPORT_SYMBOL_GPL(mmc_pwrseq_free);
+EXPORT_SYMBOL_GPL(pwrseq_free);
 
 int pwrseq_register(struct pwrseq *pwrseq)
 {

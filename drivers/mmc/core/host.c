@@ -322,7 +322,15 @@ int mmc_of_parse(struct mmc_host *host)
 		host->dsr_req = 0;
 	}
 
-	return mmc_pwrseq_alloc(host);
+	np = of_parse_phandle(host->parent->of_node, "mmc-pwrseq", 0);
+	if (np) {
+		host->pwrseq = pwrseq_alloc(np, NULL);
+		of_node_put(np);
+	}
+	if (IS_ERR(host->pwrseq))
+		return PTR_ERR(host->pwrseq);
+	else
+		return 0;
 }
 
 EXPORT_SYMBOL(mmc_of_parse);
@@ -462,7 +470,7 @@ EXPORT_SYMBOL(mmc_remove_host);
  */
 void mmc_free_host(struct mmc_host *host)
 {
-	mmc_pwrseq_free(host);
+	pwrseq_free(host->pwrseq);
 	put_device(&host->class_dev);
 }
 
