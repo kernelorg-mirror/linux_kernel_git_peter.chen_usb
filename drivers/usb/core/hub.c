@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/random.h>
 #include <linux/pm_qos.h>
+#include <linux/pwrseq.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -1684,6 +1685,64 @@ static void hub_release(struct kref *kref)
 
 static unsigned highspeed_hubs;
 
+static void hub_of_pwrseq_off(struct usb_hub *hub)
+{
+	struct pwrseq *hdev_pwrseq;
+	struct pwrseq_node_powered_on *pwrseq_node, *tmp_node;
+
+	list_for_each_entry_safe(pwrseq_node, tmp_node,
+			&hub->pwrseq_list, list) {
+		hdev_pwrseq = pwrseq_node->pwrseq_on;
+		pwrseq_power_off(hdev_pwrseq);
+		list_del(&pwrseq_node->list);
+		pwrseq_free(hdev_pwrseq);
+		kfree(pwrseq_node);
+	}
+}
+
+static int hub_of_pwrseq_on(struct usb_hub *hub)
+{
+	struct device *parent;
+	struct device_node *node;
+	struct pwrseq *hdev_pwrseq;
+	struct usb_device *hdev = hub->hdev;
+	struct pwrseq_node_powered_on *pwrseq_node;
+	int ret = 0;
+
+	if (hdev->parent)
+		parent = &hdev->dev;
+	else
+		parent = bus_to_hcd(hdev->bus)->self.controller;
+
+	for_each_child_of_node(parent->of_node, node) {
+		hdev_pwrseq = pwrseq_alloc(node, "usb_pwrseq_generic");
+		if (!IS_ERR_OR_NULL(hdev_pwrseq)) {
+			pwrseq_node = kzalloc(sizeof(pwrseq_node), GFP_KERNEL);
+			if (!pwrseq_node) {
+				ret = -ENOMEM;
+				goto err1;
+			}
+			/* power on sequence */
+			ret = pwrseq_pre_power_on(hdev_pwrseq);
+			if (ret)
+				goto err2;
+
+			pwrseq_node->pwrseq_on = hdev_pwrseq;
+			list_add(&pwrseq_node->list, &hub->pwrseq_list);
+		} else if (IS_ERR(hdev_pwrseq)) {
+			return PTR_ERR(hdev_pwrseq);
+		}
+	}
+
+	return ret;
+
+err2:
+	kfree(pwrseq_node);
+err1:
+	pwrseq_free(hdev_pwrseq);
+	return ret;
+}
+
 static void hub_disconnect(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
@@ -1700,6 +1759,7 @@ static void hub_disconnect(struct usb_interface *intf)
 	hub->error = 0;
 	hub_quiesce(hub, HUB_DISCONNECT);
 
+	hub_of_pwrseq_off(hub);
 	mutex_lock(&usb_port_peer_mutex);
 
 	/* Avoid races with recursively_mark_NOTATTACHED() */
@@ -1733,6 +1793,7 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *hdev;
 	struct usb_hub *hub;
+	int ret = -ENODEV;
 
 	desc = intf->cur_altsetting;
 	hdev = interface_to_usbdev(intf);
@@ -1839,6 +1900,7 @@ descriptor_error:
 	INIT_DELAYED_WORK(&hub->leds, led_work);
 	INIT_DELAYED_WORK(&hub->init_work, NULL);
 	INIT_WORK(&hub->events, hub_event);
+	INIT_LIST_HEAD(&hub->pwrseq_list);
 	usb_get_intf(intf);
 	usb_get_dev(hdev);
 
@@ -1852,11 +1914,14 @@ descriptor_error:
 	if (id->driver_info & HUB_QUIRK_CHECK_PORT_AUTOSUSPEND)
 		hub->quirk_check_port_auto_suspend = 1;
 
-	if (hub_configure(hub, endpoint) >= 0)
-		return 0;
+	if (hub_configure(hub, endpoint) >= 0) {
+		ret = hub_of_pwrseq_on(hub);
+		if (!ret)
+			return 0;
+	}
 
 	hub_disconnect(intf);
-	return -ENODEV;
+	return ret;
 }
 
 static int

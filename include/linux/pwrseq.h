@@ -16,6 +16,12 @@ struct pwrseq {
 	bool create_dev_from_alloc; /* dynamic create pwrseq device */
 };
 
+/* This structure is used for recording powered on pwrseq node */
+struct pwrseq_node_powered_on {
+	struct pwrseq *pwrseq_on;
+	struct list_head list;
+};
+
 struct pwrseq_ops {
 	int (*pre_power_on)(struct pwrseq *pwrseq);
 	void (*post_power_on)(struct pwrseq *pwrseq);
