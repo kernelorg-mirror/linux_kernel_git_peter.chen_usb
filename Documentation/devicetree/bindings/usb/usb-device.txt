@@ -12,6 +12,7 @@ Required properties:
   for usbVID,PID.
 - reg: the port number which this device is connecting to, the range
   is 1-31.
+- usb-pwrseq: phandle for power sequence.
 
 Example:
 
@@ -24,5 +25,6 @@ Example:
 	hub: genesys@1 {
 		compatible = "usb5e3,608";
 		reg = <1>;
+		usb-pwrseq = <&usb_genesys_pwrseq>;
 	};
 }

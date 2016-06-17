@@ -1,0 +1,31 @@
+The power sequence for generic USB Devices
+
+Some hard-wired USB devices need to do power sequence to let the
+device work normally, the typical power sequence like: enable USB
+PHY clock, toggle reset pin, etc. But current Linux USB driver
+lacks of such code to do it, it may cause some hard-wired USB devices
+works abnormal or can't be recognized by controller at all. The
+power sequence will be done before this device can be found at USB
+bus.
+
+Required properties:
+- compatible : contains "usb-pwrseq-generic".
+
+Optional properties:
+- clocks: the input clock for USB device.
+- clock-frequency: the frequency for device's clock.
+- reset-gpios: Should specify the GPIO for reset.
+- reset-duration-us: the duration in microsecond for assert reset signal.
+- enable-gpios: Should specify the GPIO for enable.
+- power-supply: The regulator of the power
+
+Example:
+
+usb2415_pwrseq: usb2415_pwrseq {
+	compatible = "usb-pwrseq-generic";
+	clocks = <&clks IMX6QDL_CLK_CKO>;
+	reset-gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
+	reset-duration-us = <3000>;
+	enable-gpios = <&gpio7 11 GPIO_ACTIVE_LOW>;
+	power-supply = <&reg_usb_power>;
+};
