@@ -74,6 +74,7 @@ static int pwrseq_generic_on(struct pwrseq *pwrseq)
 			pr_err("Can't enable clock, ret=%d\n", ret);
 			goto err_disable_clks;
 		}
+		pr_info("%s: clock enabled, id=%d\n", __func__, clk);
 	}
 
 	if (gpiod_reset) {
@@ -84,6 +85,7 @@ static int pwrseq_generic_on(struct pwrseq *pwrseq)
 		else
 			usleep_range(duration_us, duration_us + 100);
 		gpiod_set_value(gpiod_reset, 0);
+		pr_info("%s: gpio valid, duration: %d us\n", __func__, duration_us);
 	}
 
 	return ret;
