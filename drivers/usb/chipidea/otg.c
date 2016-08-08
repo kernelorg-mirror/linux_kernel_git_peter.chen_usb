@@ -93,11 +93,17 @@ enum ci_role ci_otg_role(struct ci_hdrc *ci)
 	return role;
 }
 
+void __weak arch_irq_work_raise(void)
+{
+	/*
+	 * Lame architectures will get the timer tick callback
+	 */
+}
 void ci_handle_vbus_change(struct ci_hdrc *ci)
 {
 	if (!ci->is_otg)
 		return;
-
+	arch_irq_work_raise();
 	if (hw_read_otgsc(ci, OTGSC_BSV))
 		usb_gadget_vbus_connect(&ci->gadget);
 	else
