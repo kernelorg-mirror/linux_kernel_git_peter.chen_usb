@@ -197,6 +197,8 @@ static void host_stop(struct ci_hdrc *ci)
 			ci->platdata->notify_event(ci,
 				CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		usb_remove_hcd(hcd);
+		ci->role = CI_ROLE_END;
+		synchronize_irq(ci->irq);
 		usb_put_hcd(hcd);
 		if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci) &&
 			(ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON))
